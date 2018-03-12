@@ -1,0 +1,4 @@
+256 vs 256-- Online Avg Time: 92 ms 
+256 vs 256-- Offline Avg Time: 880 ms 
+256 vs 256-- Total Avg Time: 972 ms 
+--------------------------
