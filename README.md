@@ -1,3 +1,5 @@
+# Chalmers Master Thesis 
+This is a continuation of the PrivatePool paper. The aim of this work is to further research and reduce the recognized limitations in the Privacy-preserving ridesharing model, PrivatePool [IEEE 2017](http://www.cse.chalmers.se/~andrei/csf17.pdf).
 # Batched Oblivious PRF
 This is the implementation of our [CCS 2016](http://dl.acm.org/citation.cfm?id=2978381)  paper: **Efficient Batched Oblivious PRF with Applications to Private Set Intersection**[[ePrint](https://eprint.iacr.org/2016/799)]. 
 
