@@ -220,3 +220,6 @@ mpsi.VC*
 /libPSI_TestsVS/SSOtBinPsi_TestsVS.cpp
 /psir_8s.txt
 /psis_8s.txt
+
+# Third party software
+/thirdparty/win/boost_1_63_0/

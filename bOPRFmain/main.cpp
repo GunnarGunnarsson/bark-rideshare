@@ -143,7 +143,8 @@ void BopSender()
 	//pingTest(*sendChls[0], true);
 
 	// Run this for difference bit sizes 2^n, n := (8, 12, 16, 20, 24)
-		for (u64 pow : { 8, 12, 16, 20, 24})
+		//for (u64 pow : { 8, 12, 16, 20, 24})
+	for (u64 pow : { 5, 6, 7, 8, 9, 10, 11, 12})
 	{
 		// In reality we would exclude the bit sizes determined here and set the senderSize to the size of the actual input
 		u64 senderSize = (1 << pow), psiSecParam = 40;
@@ -239,7 +240,8 @@ void BopRecv()
 	std::cout << "--------------------------\n";
 
 
-	for (u64 pow : { 8,12,16,20,24 })
+	//for (u64 pow : { 8,12,16,20,24 })
+	for (u64 pow : { 5, 6, 7, 8, 9, 10, 11, 12})
 	{
 		u64 senderSize = (1 << pow), psiSecParam = 40;
 		u64 recverSize = senderSize; //for psi of diffirent set size, you can set receiver'set size here 
@@ -327,7 +329,20 @@ void BopRecv()
 	ios.stop();
 }
 
-std::vector<block> parseData(string dataDir) {
+std::string parseDecimals(string decimals, int precision) {
+	if (decimals.length() > precision) {
+		decimals = decimals.substr(0, precision);
+	}
+	else if (decimals.length() < precision) {
+		int increments = precision - decimals.length();
+		for (int i = 0; i < increments; i++) {
+			decimals += "0";
+		}
+	}
+	return decimals;
+}
+
+pair<std::vector<block>, std::vector<string>> parseData(string dataDir, int precision) {
 	ifstream dataFile(dataDir);
 
 	if (!dataFile) {
@@ -335,27 +350,30 @@ std::vector<block> parseData(string dataDir) {
 		exit(1); // terminate with error
 	}
 	std::vector<block> dataSet = {};
+	std::vector<string> dataStrings = {};
 	string line;
 	while (dataFile >> line) {
+		dataStrings.push_back(line);
 		std::string delimiter = ",";
 
 		size_t pos = 0;
 		std::vector<int> coords = {};
 		while ((pos = line.find(delimiter)) != std::string::npos) {
-			coords.push_back(stoi(line.substr(0, pos)));
+			string coord = line.substr(0, pos);
+			coords.push_back(stoi(coord.substr(0, line.find(".")) + parseDecimals(coord.substr(line.find(".") + 1), precision)));
 			line.erase(0, pos + delimiter.length());
 		}
-		coords.push_back(stoi(line));
+		coords.push_back(stoi(line.substr(0, line.find(".")) + parseDecimals(line.substr(line.find(".") + 1), precision)));
 		dataSet.push_back(_mm_set_epi32(coords[0], coords[1], coords[2], coords[3]));
 	}
 
 	dataFile.close();
-	return dataSet;
+	return pair<std::vector<block>, std::vector<string>>(dataSet, dataStrings);
 }
 
 void RideBopSender(string dataDir)
 {
-	std::cout << "Ridesharing" << std::endl;
+	int precision = 6;
 	u64 numThreads = 1;
 	// Number of iterations for each test of one bit size
 	u64 numTrial(10);
@@ -380,7 +398,8 @@ void RideBopSender(string dataDir)
 
 	// Initialize the vector to-be-sent to the receiver
 	// The vector includes blocks of data
-	std::vector<block> sendSet = parseData(dataDir);
+	pair<std::vector<block>, vector<string>> parsedData = parseData(dataDir, precision);
+	vector<block> sendSet = parsedData.first;
 	// Pad the vector with random data
 	//PRNG prngDiff(_mm_set_epi32(43465, 32254, 2435, 2398045));
 	PRNG prngDiff(_mm_set_epi64x(0, 0));
@@ -416,9 +435,15 @@ void RideBopSender(string dataDir)
 	ios.stop();
 }
 
+std::string parseToDecStr(int coord, int precision) {
+	string coord_str = to_string(coord);
+	return coord_str.substr(0, coord_str.size() - precision) + "." + coord_str.substr(coord_str.size() - precision);
+}
+
 void RideBopRecv(string dataDir)
 {
-	std::cout << "Ridesharing receiver" << std::endl;
+	int precision = 6;
+	// std::cout << "Ridesharing receiver" << std::endl;
 	u64 numThreads = 1;
 
 	std::fstream total;
@@ -435,8 +460,8 @@ void RideBopRecv(string dataDir)
 	for (u64 i = 0; i < numThreads; ++i)
 		recvChls[i] = &ep1.addChannel(name + std::to_string(i), name + std::to_string(i));
 
-	std::cout << "role  = recv (" << numThreads << ") SSOtPSI" << std::endl;
-	std::cout << "--------------------------\n";
+	//std::cout << "role  = recv (" << numThreads << ") SSOtPSI" << std::endl;
+	//std::cout << "--------------------------\n";
 
 	//u64 senderSize = (1 << pow), psiSecParam = 40;
 	u64 senderSize = 256, psiSecParam = 40;
@@ -445,9 +470,10 @@ void RideBopRecv(string dataDir)
 	u64 offlineTimeTot(0);
 	u64 onlineTimeTot(0);
 
-	std::cout << "setSize" << "\t\t\t\t|  " << "offline(ms)" << "  |  " << "online(ms)" << std::endl;
+	//std::cout << "setSize" << "\t\t\t\t|  " << "offline(ms)" << "  |  " << "online(ms)" << std::endl;
 
-	std::vector<block> recvSet = parseData(dataDir);
+	pair<std::vector<block>, std::vector<string>> parsedData = parseData(dataDir, precision);
+	std::vector<block> recvSet = parsedData.first;
 	// Pad the vector with random data
 	//PRNG prngDiff(_mm_set_epi32(434653, 23, 11, 56));
 	PRNG prngDiff(_mm_set_epi64x(1, 1));
@@ -477,14 +503,28 @@ void RideBopRecv(string dataDir)
 	offlineTimeTot += offlineTime;
 	onlineTimeTot += onlineTime;
 
-	std::cout << "\ngot " << recvPSIs.mIntersection.size() << " out of " << recverSize << std::endl;
+	//std::cout << "\ngot " << recvPSIs.mIntersection.size() << " out of " << recverSize << std::endl;
 
-	std::cout << recverSize << " vs " << senderSize << "\t\t\t\t" << offlineTime << "\t\t" << onlineTime << std::endl;
+	//std::cout << recverSize << " vs " << senderSize << "\t\t\t\t" << offlineTime << "\t\t" << onlineTime << std::endl;
 
-	std::cout << recverSize << " vs " << senderSize << "-- Online Avg Time: " << onlineTimeTot / numTrial << " ms " << "\n";
-	std::cout << recverSize << " vs " << senderSize << "-- Offline Avg Time: " << offlineTimeTot / numTrial << " ms " << "\n";
-	std::cout << recverSize << " vs " << senderSize << "-- Total Avg Time: " << (offlineTimeTot + onlineTimeTot) / numTrial << " ms " << "\n";
-	std::cout << "--------------------------\n";
+	//std::cout << recverSize << " vs " << senderSize << "-- Online Avg Time: " << onlineTimeTot / numTrial << " ms " << "\n";
+	//std::cout << recverSize << " vs " << senderSize << "-- Offline Avg Time: " << offlineTimeTot / numTrial << " ms " << "\n";
+	//std::cout << recverSize << " vs " << senderSize << "-- Total Avg Time: " << (offlineTimeTot + onlineTimeTot) / numTrial << " ms " << "\n";
+	//std::cout << "--------------------------\n";
+	// PP compatible response
+	std::sort(recvPSIs.mIntersection.begin(), recvPSIs.mIntersection.end());
+	std::cout << "Computation finished. Found " << recvPSIs.mIntersection.size() << " intersecting elements:" << endl;
+	string prev_segment = "";
+	for (int i = 0; i < recvPSIs.mIntersection.size(); i++) {
+		if (parsedData.second[i] != prev_segment) {
+			std::cout << parsedData.second[i] << endl;
+		}
+		//if (segment != prev_segment) {
+		//	std::cout << parseToDecStr(segment[0],precision) << "," << parseToDecStr(segment[1],precision) << "," << parseToDecStr(segment[2],precision) << "," << parseToDecStr(segment[3],precision) << endl;
+		//}
+		//copy(segment, segment+4, prev_segment);
+		prev_segment = parsedData.second[i];
+	}
 
 	total << recverSize << " vs " << senderSize << "-- Online Avg Time: " << onlineTimeTot / numTrial << " ms " << "\n";
 	total << recverSize << " vs " << senderSize << "-- Offline Avg Time: " << offlineTimeTot / numTrial << " ms " << "\n";
@@ -621,6 +661,8 @@ void usage(const char* argv0)
 	std::cout << "\t\t Receiver terminal: " << argv0 << " -r 1" << std::endl;
 }
 
+void benchmarks(const size_t size);
+
 int main(int argc, char** argv)
 {
 	/*std::thread thrd([&]() {
@@ -652,4 +694,60 @@ int main(int argc, char** argv)
 	}
 
 	return 0;
+}
+
+std::pair<int, int> random_point() {
+	return std::pair<int, int>(rand(), rand());
+}
+
+void benchmarks(const size_t size) {
+	std::vector<pair<int, int>> pts_a;
+	std::vector<pair<int, int>> pts_b;
+	const size_t used_size = (const size_t)round(2.4 * size);
+	for (int i = 0; i < used_size; ++i) {
+		pts_a.push_back(random_point());
+	}
+
+	pts_b.push_back(random_point());
+	for (int i = 0; i < used_size - 1; ++i) {
+		pts_b.push_back(pts_a[i]);
+	}
+
+	// they need to know half the set (T-KEM specific stuff)
+	const size_t t = (const size_t)round(size * 0.9);
+	const size_t num_hints = used_size - t;
+
+	//long st = nano_time();
+	// Initialize timer
+	// Start the sender
+	/*
+	SenderInterpolator sender_interpolator(pts_a, num_hints);
+	GF128 check = sender_interpolator.getCheck();
+	std::vector<Point> hints = sender_interpolator.getHints();
+	st = timestamp(st);*/
+
+	// Start the receiver
+	/*
+	long rt = nano_time();
+	ReceiverInterpolator rp(pts_b, hints, check);*/
+
+	// Evaluate results
+	/*
+	CoefficientPair cp;
+	rp.interpolate_coefficients_at(cp, 0);
+	for (int i = 0; i < num_hints; ++i) {
+		rp.progress_coefficients(cp);
+	}
+	const GF128 &secret = rp.evaluate(cp);
+	rt = timestamp(rt);
+
+	if (secret != check) {
+		cerr << "Fail fail" << endl;
+	}
+	else {
+		cout << "OK." << endl;
+	}
+
+	cout << "For size=" << size << "\t Receiver time="
+		<< rt / (double)BILLION << ", sender time=" << st / (double)BILLION << " (seconds)" << endl;*/
 }
